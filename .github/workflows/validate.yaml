@@ -1,0 +1,64 @@
+name: Validate Sublime Syntax
+
+on:
+  pull_request:
+    paths:
+      - 'KCL.sublime-syntax'
+      - 'test_data/**'
+      - '.github/workflows/**'
+  push:
+    branches:
+      - main
+    paths:
+      - 'KCL.sublime-syntax'
+      - 'test_data/**'
+      - '.github/workflows/**'
+
+jobs:
+  validate-yaml:
+    name: Validate KCL.sublime-syntax
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install PyYAML
+        run: python -m pip install --quiet pyyaml
+
+      - name: Validate YAML structure
+        shell: bash
+        run: |
+          python - <<'PY'
+          import yaml
+
+          path = 'KCL.sublime-syntax'
+          with open(path) as f:
+              data = yaml.safe_load(f)
+
+          assert isinstance(data, dict), (
+              f"{path} must be a YAML mapping, got {type(data).__name__}"
+          )
+
+          scope = data.get('scope')
+          assert scope == 'source.kcl', (
+              f"expected scope 'source.kcl', got {scope!r}"
+          )
+
+          file_extensions = data.get('file_extensions')
+          assert isinstance(file_extensions, list) and 'k' in file_extensions, (
+              f"expected 'k' in file_extensions, got {file_extensions!r}"
+          )
+
+          assert 'contexts' in data, 'missing top-level contexts'
+          assert 'main' in data['contexts'], 'missing main context'
+
+          print(
+              f"OK: {path} is valid "
+              f"(scope={scope}, file_extensions={file_extensions})"
+          )
+          PY
